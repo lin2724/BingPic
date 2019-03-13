@@ -2,8 +2,10 @@ import os
 import sys
 import json
 import requests
+import re
 from common_lib import LogHandle
 gstLogHandler = LogHandle('bing.log')
+gImgJsonTmpFile = 'img_list_tmp.json'
 
 
 class BingPic:
@@ -65,6 +67,17 @@ class BingPic:
         return img_dict_list
         pass
 
+    def get_img_name_from_url(self, url):
+        # /th?id=OHR.Cefalu_ZH-CN9108906653_1920x1080.jpg&rf=NorthMale_1920x1080.jpg&pid=hp
+        pattern = 'id=(?P<img_name>[^&]+)'
+        m = re.search(pattern=pattern, string=url)
+        if m:
+            return m.group('img_name')
+        else:
+            self.log('Faile detach img-name from url [%s]' % url)
+            raise ValueError
+        pass
+
     def download_imgs(self, img_info_dict):
         img_info_list = list()
         if type(img_info_dict) == dict:
@@ -73,7 +86,7 @@ class BingPic:
             img_info_list.extend(img_info_dict)
         for img_info in img_info_list:
             url = img_info['url']
-            img_name = url.split('/')[-1]
+            img_name = self.get_img_name_from_url(url)
             img_store_path = os.path.join(self.m_set_store_folder, img_name)
             if os.path.exists(img_store_path):
                 self.log('Img Already exist [%s]' % img_store_path)
@@ -95,6 +108,8 @@ class BingPic:
             ret_img_dict_list.extend(img_dict_list)
             self.log(imgs_json_url)
             json_content = self.do_get(imgs_json_url)
+            with open(gImgJsonTmpFile, 'w+') as fd:
+                fd.write(json_content)
             img_dict_list = self.parse_imgs_json(json_content)
         return ret_img_dict_list
         pass
